@@ -6,3 +6,7 @@ openai
 langchain-openai
 langchain-community
 sse_starlette
+beautifulsoup4
+faiss-cpu
+langchain_text_splitters
+langchain_core
