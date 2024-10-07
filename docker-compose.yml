@@ -1,0 +1,11 @@
+version: '3'
+services:
+  langchain:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    # command: python /app/main.py
+    ports:
+      - "8000:8000"
