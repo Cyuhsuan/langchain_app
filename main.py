@@ -6,8 +6,12 @@ model = ChatOpenAI(model="gpt-3.5-turbo")
 # Define a new graph
 workflow = StateGraph(state_schema=MessagesState)
 # Define the function that calls the model
-def call_model(state: MessagesState):
-    response = model.invoke(state["messages"])
+# def call_model(state: MessagesState):
+#     response = model.invoke(state["messages"])
+#     return {"messages": response}
+
+async def call_model(state: MessagesState):
+    response = await model.ainvoke(state["messages"])
     return {"messages": response}
 
 # Define the (single) node in the graph
@@ -20,11 +24,17 @@ app = workflow.compile(checkpointer=memory)
 
 config = {"configurable": {"thread_id": "abc123"}}
 
-input_text = input('>>> ')
-while input_text.lower() != 'bye':
-    if input_text:
-        input_messages = [HumanMessage(input_text)]
-        output = app.invoke({"messages": input_messages}, config)
-        output["messages"][-1].pretty_print()  # output contains all messages in state
-
+async def main():
     input_text = input('>>> ')
+    while input_text.lower() != 'bye':
+        if input_text:
+            input_messages = [HumanMessage(input_text)]
+            output = await app.ainvoke({"messages": input_messages}, config)
+            output["messages"][-1].pretty_print()  # output contains all messages in state
+
+        input_text = input('>>> ')
+
+import asyncio
+
+if __name__ == "__main__":
+    asyncio.run(main())
