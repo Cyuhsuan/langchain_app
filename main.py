@@ -1,32 +1,67 @@
 from typing import Annotated
+
+from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_core.messages import BaseMessage
 from typing_extensions import TypedDict
-from langchain_openai import ChatOpenAI
-from langgraph.graph import StateGraph, START, END
+
+from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
-model = ChatOpenAI(model="gpt-3.5-turbo")
+from langgraph.prebuilt import ToolNode, tools_condition
+
+from langchain_openai import ChatOpenAI
 class State(TypedDict):
     # Messages have the type "list". The `add_messages` function
     messages: Annotated[list, add_messages]
 
+# 設定模型
+model = ChatOpenAI(model="gpt-3.5-turbo")
+
+# 設定工具
+tool = TavilySearchResults(max_results=2)
+# tools = [{
+#     "type": "function",
+#     "function": {
+#         "name": tool.name,
+#         "description": tool.description,
+#         "parameters": tool.args_schema.schema()
+#     }
+# }]
+tools = [tool]
+# tool.invoke("What's a 'node' in LangGraph?")
+# model 使用工具
+model = model.bind_tools(tools)
+
 def chatbot(state: State):
     return {"messages": [model.invoke(state["messages"])]}
 
-
 # 告宣告一個 state 的狀態機
 graph_builder = StateGraph(State)
-# 添加節點
-graph_builder.add_node("chatbot", chatbot)
+# # 添加聊天機器人節點
+# graph_builder.add_node("chatbot", chatbot)
+# # 添加工具節點
+# tool_node = ToolNode(tools=[tool])
+# graph_builder.add_node("tools", tool_node)
+
 # 添加邊
-# START 是狀態機的入口
-# END 是狀態機的出口
-# 從 START 到 chatbot
-graph_builder.add_edge(START, "chatbot")
-# 從 chatbot 到 END
-graph_builder.add_edge("chatbot", END)
+# graph_builder.add_edge("tools", "chatbot")
+# graph_builder.set_entry_point("chatbot")
+graph_builder.add_node("chatbot", chatbot)
+
+tool_node = ToolNode(tools=[tool])
+graph_builder.add_node("tools", tool_node)
+
+graph_builder.add_conditional_edges(
+    "chatbot",
+    tools_condition,
+)
+# Any time a tool is called, we return to the chatbot to decide the next step
+graph_builder.add_edge("tools", "chatbot")
+graph_builder.set_entry_point("chatbot")
+graph = graph_builder.compile()
 
 # 建立 狀態機的樹圖
-# it will be a tree of nodes and edges (start -> chatbot -> end)
-graph = graph_builder.compile()
+# 它將是一個節點和邊的樹圖 (start -> (chatbot (if)-> tools -> chatbot) -> end)
+# graph = graph_builder.compile()
 
 def stream_graph_updates(user_input: str):
     for event in graph.stream({"messages": [("user", user_input)]}):
@@ -35,7 +70,7 @@ def stream_graph_updates(user_input: str):
 
 while True:
     try:
-        user_input = input(">>> ")
+        user_input = input("User: ")
         if user_input.lower() in ["quit", "exit", "q"]:
             print("Goodbye!")
             break
