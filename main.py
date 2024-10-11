@@ -48,7 +48,10 @@ graph_builder.add_edge("tools", "chatbot")
 # 設定入口節點
 graph_builder.set_entry_point("chatbot")
 # 編譯圖
-graph = graph_builder.compile(checkpointer=memory)
+graph = graph_builder.compile(
+    checkpointer=memory,
+    interrupt_before=["tools"]
+    )
 
 config = {"configurable": {"thread_id": "1"}}
 
